@@ -54,15 +54,13 @@
 <div class="container">
     <div id="status-header" class="header">System Bypass: Loading DB...</div>
     
-    <video id="player" playsinline controls>
-        <source id="video-source" src="" type="video/mp4" />
-    </video>
+    <video id="player" playsinline controls></video>
 </div>
 
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 
 <script>
-    // Ініціалізація плеєра
+    // Ініціалізація плеєра без source (ми його додамо пізніше)
     const player = new Plyr('#player', {
         title: 'S.W.A.T.',
         tooltips: { controls: true, seek: true },
@@ -70,35 +68,38 @@
         fullscreen: { enabled: true, fallback: true, iosNative: true }
     });
 
-    // --- ФУНКЦІЯ ПІДКЛЮЧЕННЯ ДО БАЗИ ДАНИХ ---
     async function initCinema() {
         try {
-            // Читаємо наш JSON файл
-            const response = await fetch('db.json');
+            // Додаємо випадкове число до запиту, щоб GitHub не видавав стару версію файлу (кеш)
+            const response = await fetch('db.json?v=' + Math.random());
             const data = await response.json();
-            
-            // Беремо дані першого фільму
             const movie = data.movies[0];
 
-            // Оновлюємо інтерфейс
             document.getElementById('status-header').innerText = `System Bypass: ${movie.status} — ${movie.title}`;
             
-            // Встановлюємо посилання у плеєр
-            const videoElement = document.getElementById('player');
-            videoElement.src = movie.url;
-            
-            console.log("Дані з бази завантажено успішно!");
+            // ВАЖЛИВО: Оновлюємо source саме через метод Plyr
+            player.source = {
+                type: 'video',
+                title: movie.title,
+                sources: [
+                    {
+                        src: movie.url,
+                        type: 'video/mp4',
+                    }
+                ],
+            };
+
+            console.log("Плеєр отримав нове посилання:", movie.url);
+
         } catch (error) {
             document.getElementById('status-header').innerText = "System Bypass: Database Error";
             document.getElementById('status-header').style.color = "red";
-            console.error("Помилка при завантаженні db.json:", error);
+            console.error(error);
         }
     }
 
-    // Запускаємо при завантаженні сторінки
     initCinema();
 
-    // Автоповорот екрана
     player.on('enterfullscreen', () => {
         if (screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('landscape').catch(() => {});
