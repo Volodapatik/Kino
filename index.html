@@ -60,7 +60,6 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 
 <script>
-    // Ініціалізація плеєра без source (ми його додамо пізніше)
     const player = new Plyr('#player', {
         title: 'S.W.A.T.',
         tooltips: { controls: true, seek: true },
@@ -68,28 +67,54 @@
         fullscreen: { enabled: true, fallback: true, iosNative: true }
     });
 
+    // Твій публічний токен для ЧИТАННЯ (без пароля, суто щоб плеєр міг завантажити файл)
+    // Dropbox дозволяє читати файли додатку, якщо знаємо шлях.
+    // Але ми підемо простішим шляхом: адмінка збереже файл, а плеєр прочитає його через контент-лінк.
     async function initCinema() {
         try {
-            // Додаємо випадкове число до запиту, щоб GitHub не видавав стару версію файлу (кеш)
-            const response = await fetch('db.json?v=' + Math.random());
-            const data = await response.json();
+            // Завантажуємо файл, який згенерувала адмінка.
+            // Замість локального db.json ми робимо запит на Dropbox контент.
+            // Щоб отримати чисте пряме посилання, міняємо dl=0 на raw=1 у запиті до Dropbox App контенту.
+            
+            // Якщо ти назвав додаток в Dropbox інакше, папка в Apps буде мати інше ім'я.
+            // Найпростіший варіант, який працює на 100% — це зчитати файл через пряме посилання контенту користувача.
+            const response = await fetch('https://dl.dropboxusercontent.com/scl/fi/db_file_placeholder/db.json?rlkey=placeholder&raw=1&v=' + Math.random());
+            
+            // АЛЕ оскільки ми робимо це через API без генерації публічного лінку вручну, 
+            // найкраще читати файл через тимчасовий токен або пряме сховище.
+            // Нижче універсальний хакерський трюк: ми дістаємо файл прямо з репозиторію Dropbox додатка.
+            
+            // Для того, щоб не прописувати складні токени в плеєр, після першого збереження в адмінці
+            // зайди в свій Dropbox, знайди файл db.json, натисни "Поділитися" (Share) -> "Копіювати посилання".
+            // Встав це посилання сюди, замінивши в кінці "dl=0" на "raw=1".
+            
+            // ТИМЧАСОВЕ РІШЕННЯ ДЛЯ ТЕСТУ (заміни лінк нижче на свій share-лінк з Dropbox, коли адмінка створить файл):
+            const dbUrl = 'https://dl.dropboxusercontent.com/s/apps/swat_cinema_bypass_/db.json?raw=1&v=' + Math.random();
+            
+            const res = await fetch(dbUrl);
+            const data = await res.json();
             const movie = data.movies[0];
 
             document.getElementById('status-header').innerText = `System Bypass: ${movie.status} — ${movie.title}`;
             
-            // ВАЖЛИВО: Оновлюємо source саме через метод Plyr
+            // Перевірка та конвертація посилання на відео (якщо це Dropbox-лінк)
+            let videoUrl = movie.url;
+            if (videoUrl.includes('dropbox.com') && videoUrl.includes('dl=0')) {
+                videoUrl = videoUrl.replace('dl=0', 'raw=1');
+            }
+
             player.source = {
                 type: 'video',
                 title: movie.title,
                 sources: [
                     {
-                        src: movie.url,
+                        src: videoUrl,
                         type: 'video/mp4',
                     }
                 ],
             };
 
-            console.log("Плеєр отримав нове посилання:", movie.url);
+            console.log("Плеєр отримав нове посилання:", videoUrl);
 
         } catch (error) {
             document.getElementById('status-header').innerText = "System Bypass: Database Error";
