@@ -4,106 +4,124 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.W.A.T. Player</title>
-    <!-- Підключаємо стилі та скрипти плеєра Clappr -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@clappr/player@latest/dist/clappr.min.js"></script>
+    <!-- Підключаємо легку бібліотеку Hls.js для відтворення потоків .m3u8 на телефонах Android -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body {
             background-color: #000;
             color: #fff;
             margin: 0;
-            padding: 0;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             font-family: 'Courier New', Courier, monospace;
+            box-sizing: border-box;
         }
         #movie-title {
             margin-bottom: 15px;
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-align: center;
             text-shadow: 0 0 10px #00ff41;
             color: #00ff41;
+            max-width: 100%;
+            word-wrap: break-word;
         }
-        #player-wrapper {
+        .player-container {
             width: 100%;
-            max-width: 854px;
+            max-width: 640px; /* Оптимальний розмір для мобільних */
             aspect-ratio: 16/9;
-            background-color: #111;
+            background-color: #000;
             border: 2px solid #00ff41;
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
         }
         #error-msg {
             color: #ff0000;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             text-align: center;
             display: none;
-            padding: 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
         }
     </style>
 </head>
 <body>
 
-    <div id="movie-title">Завантаження системи...</div>
-    <div id="player-wrapper">
-        <div id="player"></div>
+    <div id="movie-title">СИНХРОНІЗАЦІЯ...</div>
+    <div class="player-container">
+        <video id="video" controls playsinline preload="auto"></video>
         <div id="error-msg">СИСТЕМА OFFLINE АБО ПОМИЛКА ЗАВАНТАЖЕННЯ</div>
     </div>
 
 <script>
-    // Твій особистий ID бази даних, який ми щойно згенерували
-    const BIN_ID = '6a4678b5da38895dfe22ec7d';
+    const BIN_ID = '6a467a8cf5f4af5e295487eb';
     const dbUrl = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest?meta=false`;
 
     async function initPlayer() {
         const titleEl = document.getElementById('movie-title');
         const errorEl = document.getElementById('error-msg');
-        const playerEl = document.getElementById('player');
+        const video = document.getElementById('video');
 
         try {
-            // Отримуємо актуальні дані про фільм
             const response = await fetch(dbUrl);
-            if (!response.ok) throw new Error('Помилка мережі');
+            if (!response.ok) throw new Error('Помилка завантаження бази');
             
             const data = await response.json();
             const movie = data.movies[0];
 
-            // Перевіряємо статус системи
             if (movie.status === 'OFFLINE') {
                 titleEl.innerText = "СИСТЕМА ОФЛАЙН";
                 titleEl.style.color = "red";
-                playerEl.style.display = 'none';
+                video.style.display = 'none';
                 errorEl.style.display = 'block';
                 return;
             }
 
-            // Виводимо назву фільму
             titleEl.innerText = movie.title;
 
-            // Ініціалізуємо плеєр Clappr, який ідеально жує .m3u8 потоки
-            const player = new Clappr.Player({
-                source: movie.url,
-                parentId: "#player",
-                width: "100%",
-                height: "100%",
-                autoPlay: false,
-                preload: 'auto',
-                mimeType: 'application/x-mpegURL'
-            });
+            // Налаштування стриму під мобільні пристрої
+            if (movie.url.includes('.m3u8')) {
+                if (Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(movie.url);
+                    hls.attachMedia(video);
+                } else if (video.canPlayType('application/x-mpegURL') || video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Рідна підтримка для iPhone/Safari
+                    video.src = movie.url;
+                } else {
+                    titleEl.innerText = "ФОРМАТ НЕ ПІДТРИМУЄТЬСЯ";
+                    titleEl.style.color = "red";
+                }
+            } else {
+                // Якщо звичайний MP4 файл
+                video.src = movie.url;
+            }
 
         } catch (error) {
             console.error(error);
-            titleEl.innerText = "ПОМИЛКА СИНХРОНІЗАЦІЇ";
+            titleEl.innerText = "ПОМИЛКА МЕРЕЖІ";
             titleEl.style.color = "red";
-            playerEl.style.display = 'none';
+            video.style.display = 'none';
             errorEl.style.display = 'block';
         }
     }
 
-    // Запуск при завантаженні сторінки
     window.onload = initPlayer;
 </script>
 </body>
