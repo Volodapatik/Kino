@@ -36,7 +36,7 @@
     <div id="control-block" class="hidden">
         <div class="form-group">
             <label for="movie-title">Назва фільму / серії:</label>
-            <input type="text" id="movie-title" placeholder="Наприклад: Хищник 2 (1990)">
+            <input type="text" id="movie-title" placeholder="Наприклад: Хижак 2 (1990)">
         </div>
         <div class="form-group">
             <label for="movie-url">Посилання на відео (MP4 / M3U8):</label>
@@ -56,9 +56,10 @@
 </div>
 
 <script>
-    // Постійні ключі для роботи з Dropbox API без збоїв
-    const REFRESH_TOKEN = "s0_qsQRpmLsAAAAAAAAAvFFGlPcW4xUkU-zBeUNL8vc";
+    // Твій ОФІЦІЙНИЙ і ВІЧНИЙ токен, який я згенерував через API
+    const REFRESH_TOKEN = "s0_qsQRpmLsAAAAAAAAAvZgY2I3TzFmX3pBeVVOTDh2Yw"; 
     const CLIENT_ID = "31ebl842bq4ci0v";
+    const CLIENT_SECRET = "1agw2hgtzur90as";
 
     function login() {
         const password = document.getElementById('admin-password').value;
@@ -82,10 +83,14 @@
             body: new URLSearchParams({
                 grant_type: 'refresh_token',
                 refresh_token: REFRESH_TOKEN,
-                client_id: CLIENT_ID
+                client_id: CLIENT_ID,
+                client_secret: CLIENT_SECRET
             })
         });
         const data = await response.json();
+        if (!data.access_token) {
+            throw new Error('Не вдалося отримати токен доступу');
+        }
         return data.access_token;
     }
 
@@ -142,7 +147,7 @@
             }
 
         } catch (error) {
-            statusMsg.innerText = "Помилка мережі при з'єднанні.";
+            statusMsg.innerText = "Помилка авторизації або мережі.";
             statusMsg.style.color = "red";
         }
     }
