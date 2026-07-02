@@ -11,12 +11,11 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-size: 0.9rem; text-transform: uppercase; }
         input, select { width: 100%; padding: 12px; background-color: #111; border: 1px solid #00ff41; color: #00ff41; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 1rem; }
-        input:focus, select:focus { outline: none; box-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
-        button { width: 100%; padding: 15px; background-color: #00ff41; border: none; color: #000; font-weight: bold; font-size: 1.1rem; border-radius: 4px; cursor: pointer; text-transform: uppercase; transition: all 0.3s ease; font-family: inherit; margin-top: 10px; }
+        button { width: 100%; padding: 15px; background-color: #00ff41; border: none; color: #000; font-weight: bold; font-size: 1.1rem; border-radius: 4px; cursor: pointer; text-transform: uppercase; margin-top: 10px; font-family: inherit; }
         button:hover { background-color: #003300; color: #00ff41; box-shadow: 0 0 15px #00ff41; }
         .status { margin-top: 20px; text-align: center; font-size: 0.95rem; min-height: 24px; font-weight: bold; }
         .hidden { display: none; }
-        .setup-link { color: #ffff00; text-decoration: underline; cursor: pointer; display: block; margin-top: 15px; text-align: center; }
+        .bin-info { color: #888; font-size: 0.8rem; text-align: center; margin-top: 15px; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -24,138 +23,61 @@
 <div class="terminal">
     <h1>S.W.A.T. Command Center</h1>
     
-    <!-- БЛОК ВХОДУ -->
     <div id="login-block">
         <div class="form-group">
             <label for="admin-password">Пароль адміна:</label>
-            <input type="password" id="admin-password" placeholder="Введіть код доступу..." onkeydown="if(event.key==='Enter') login()">
+            <input type="password" id="admin-password" placeholder="Введіть код..." onkeydown="if(event.key==='Enter') login()">
         </div>
-        <button onclick="login()">Увійти в систему</button>
+        <button onclick="login()">Увійти</button>
     </div>
 
-    <!-- БЛОК АКТИВАЦІЇ REFRESH TOKEN (ПЕРШИЙ ЗАПУСК) -->
-    <div id="setup-block" class="hidden">
-        <p style="color: #ffff00; font-size: 0.9rem; text-align: center;">Необхідно виконати прив'язку до Dropbox:</p>
-        <div class="form-group">
-            <label for="auth-code">Введіть тимчасовий код (s0_...):</label>
-            <input type="text" id="auth-code" placeholder="Вставте отриманий код сюди">
-        </div>
-        <button onclick="generatePermanentToken()">Активувати вічний доступ</button>
-        <a id="dropbox-link" class="setup-link" target="_blank">1. Натисніть сюди, щоб отримати код</a>
-    </div>
-
-    <!-- БЛОК КЕРУВАННЯ ПЛЕЄРОМ -->
     <div id="control-block" class="hidden">
         <div class="form-group">
-            <label for="movie-title">Назва фільму / серії:</label>
-            <input type="text" id="movie-title" placeholder="Наприклад: Хижак 2 (1990)">
+            <label for="movie-title">Назва фільму:</label>
+            <input type="text" id="movie-title" placeholder="Наприклад: Хижак 2">
         </div>
         <div class="form-group">
-            <label for="movie-url">Посилання на відео (MP4 / M3U8):</label>
+            <label for="movie-url">Посилання (MP4 / M3U8):</label>
             <input type="text" id="movie-url" placeholder="https://...">
         </div>
         <div class="form-group">
-            <label for="movie-status">Статус системи:</label>
+            <label for="movie-status">Статус:</label>
             <select id="movie-status">
                 <option value="ONLINE">ONLINE</option>
                 <option value="OFFLINE">OFFLINE</option>
             </select>
         </div>
         <button onclick="updateDatabase()">Оновити плеєр</button>
-        <span class="setup-link" onclick="resetToken()">Переприв'язати Dropbox</span>
+        <div id="bin-display" class="bin-info"></div>
     </div>
 
     <div class="status" id="status-msg">SYSTEM ACCESS REQUIRED</div>
 </div>
 
 <script>
-    const CLIENT_ID = "31ebl842bq4ci0v";
-    const CLIENT_SECRET = "1agw2hgtzur90as";
-
-    // Генеруємо посилання для авторизації
-    document.getElementById('dropbox-link').href = `https://www.dropbox.com/oauth2/authorize?client_id=${CLIENT_ID}&token_access_type=offline&response_type=code`;
+    const API_KEY = "$2a$10$Rzw4Cc5jduJBprtKatMfVOrfDPERsie5r1jcQg3ZJ0hA3L09YtTHW";
 
     function login() {
-        const password = document.getElementById('admin-password').value;
-        const statusMsg = document.getElementById('status-msg');
-
-        if (password === "1w2q789rs") {
+        if (document.getElementById('admin-password').value === "1w2q789rs") {
             document.getElementById('login-block').classList.add('hidden');
-            
-            // Перевіряємо, чи є вже збережений вічний токен в браузері
-            if (!localStorage.getItem('dropbox_refresh_token')) {
-                document.getElementById('setup-block').classList.remove('hidden');
-                statusMsg.innerText = "Потрібна первинна авторизація Dropbox.";
-                statusMsg.style.color = "#ffff00";
-            } else {
-                document.getElementById('control-block').classList.remove('hidden');
-                statusMsg.innerText = "З'єднання встановлено.";
-                statusMsg.style.color = "#00ff41";
-            }
+            document.getElementById('control-block').classList.remove('hidden');
+            displayBinId();
+            document.getElementById('status-msg').innerText = "З'єднання встановлено.";
+            document.getElementById('status-msg').style.color = "#00ff41";
         } else {
-            statusMsg.innerText = "ACCESS DENIED: Невірний пароль";
-            statusMsg.style.color = "red";
+            document.getElementById('status-msg').innerText = "ACCESS DENIED";
+            document.getElementById('status-msg').style.color = "red";
         }
     }
 
-    async function generatePermanentToken() {
-        const code = document.getElementById('auth-code').value.trim();
-        const statusMsg = document.getElementById('status-msg');
-
-        if (!code) {
-            statusMsg.innerText = "Введіть отриманий код!";
-            return;
+    function displayBinId() {
+        const binId = localStorage.getItem('jsonbin_id');
+        const binDisplay = document.getElementById('bin-display');
+        if (binId) {
+            binDisplay.innerText = "ID бази даних: " + binId;
+        } else {
+            binDisplay.innerText = "База ще не створена. Вона створиться автоматично при першому збереженні.";
         }
-
-        statusMsg.innerText = "Обмін коду на вічний токен...";
-        statusMsg.style.color = "yellow";
-
-        try {
-            const response = await fetch('https://api.dropboxapi.com/oauth2/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    client_id: CLIENT_ID,
-                    client_secret: CLIENT_SECRET
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.refresh_token) {
-                // Зберігаємо вічний токен прямо у пам'ять браузера, щоб він ніколи не злітав
-                localStorage.setItem('dropbox_refresh_token', data.refresh_token);
-                
-                document.getElementById('setup-block').classList.add('hidden');
-                document.getElementById('control-block').classList.remove('hidden');
-                statusMsg.innerText = "Успішно прив'язано! Можна оновлювати фільми.";
-                statusMsg.style.color = "#00ff41";
-            } else {
-                statusMsg.innerText = "Помилка: код застарів. Спробуйте ще раз.";
-                statusMsg.style.color = "red";
-            }
-        } catch (e) {
-            statusMsg.innerText = "Помилка запиту під час активації.";
-            statusMsg.style.color = "red";
-        }
-    }
-
-    async function getAccessToken() {
-        const refreshToken = localStorage.getItem('dropbox_refresh_token');
-        const response = await fetch('https://api.dropboxapi.com/oauth2/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                client_id: CLIENT_ID,
-                client_secret: CLIENT_SECRET
-            })
-        });
-        const data = await response.json();
-        return data.access_token;
     }
 
     async function updateDatabase() {
@@ -164,46 +86,59 @@
         const status = document.getElementById('movie-status').value;
         const statusMsg = document.getElementById('status-msg');
 
-        if (!title || !url) {
-            statusMsg.innerText = "Заповніть усі поля!";
-            statusMsg.style.color = "red";
-            return;
-        }
+        if (!title || !url) { statusMsg.innerText = "Заповніть усі поля!"; statusMsg.style.color = "red"; return; }
+        statusMsg.innerText = "Обробка запиту..."; statusMsg.style.color = "yellow";
 
-        statusMsg.innerText = "Синхронізація з Dropbox...";
-        statusMsg.style.color = "yellow";
-
-        const newData = { "movies": [{ "id": 1, "title": title, "url": url, "status": status }] };
+        const movieData = { "movies": [{ "id": 1, "title": title, "url": url, "status": status }] };
+        let binId = localStorage.getItem('jsonbin_id');
 
         try {
-            const accessToken = await getAccessToken();
-
-            const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken,
-                    'Dropbox-API-Arg': JSON.stringify({ path: '/db.json', mode: 'overwrite' }),
-                    'Content-Type': 'application/octet-stream'
-                },
-                body: JSON.stringify(newData, null, 2)
-            });
+            let response;
+            if (!binId) {
+                // СТВОРЕННЯ НОВОЇ БАЗИ (Якщо її ще немає в браузері)
+                statusMsg.innerText = "Створення бази даних на сервері...";
+                response = await fetch('https://api.jsonbin.io/v3/b', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY,
+                        'X-Bin-Private': 'false' // Робимо публічною, щоб плеєр міг читати без ключів
+                    },
+                    body: JSON.stringify(movieData)
+                });
+                
+                const resData = await response.json();
+                if (response.ok && resData.record) {
+                    binId = resData.metadata.id;
+                    localStorage.setItem('jsonbin_id', binId);
+                    displayBinId();
+                } else {
+                    throw new Error('Помилка створення бази');
+                }
+            } else {
+                // ОНОВЛЕННЯ ІСНУЮЧОЇ БАЗИ
+                statusMsg.innerText = "Синхронізація з сервером...";
+                response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
+                    },
+                    body: JSON.stringify(movieData)
+                });
+            }
 
             if (response.ok) {
                 statusMsg.innerText = "СИСТЕМУ ОНОВЛЕНО УСПІШНО!";
                 statusMsg.style.color = "#00ff41";
             } else {
-                statusMsg.innerText = "Dropbox відхилив запис файла.";
+                statusMsg.innerText = "Помилка сервера. Спробуйте ще раз.";
                 statusMsg.style.color = "red";
             }
-        } catch (error) {
-            statusMsg.innerText = "Помилка з'єднання.";
+        } catch (e) {
+            statusMsg.innerText = "Помилка мережі.";
             statusMsg.style.color = "red";
         }
-    }
-
-    function resetToken() {
-        localStorage.removeItem('dropbox_refresh_token');
-        location.reload();
     }
 </script>
 </body>
