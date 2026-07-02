@@ -3,84 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.W.A.T. Плеєр</title>
-    <!-- Підключаємо сучасну обгортку для плеєра та бібліотеку для m3u8 потоків -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css" />
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js"></script>
+    <title>S.W.A.T. Player</title>
+    <!-- Підключаємо стилі та скрипти плеєра Clappr -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@clappr/player@latest/dist/clappr.min.js"></script>
     <style>
-        body { margin: 0; background-color: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; color: #fff; box-sizing: border-box; }
-        .container { width: 100%; max-width: 900px; padding: 15px; }
-        #movie-title { text-align: center; margin-bottom: 20px; font-size: 1.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #00ff41; text-shadow: 0 0 10px rgba(0,255,65,0.3); }
-        .plyr { border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #222; }
-        /* Зелений неоновий акцент для повзунків плеєра */
-        :root { --plyr-color-main: #00ff41; }
+        body {
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #movie-title {
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            text-shadow: 0 0 10px #00ff41;
+            color: #00ff41;
+        }
+        #player-wrapper {
+            width: 100%;
+            max-width: 854px;
+            aspect-ratio: 16/9;
+            background-color: #111;
+            border: 2px solid #00ff41;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+        #error-msg {
+            color: #ff0000;
+            font-size: 1.2rem;
+            text-align: center;
+            display: none;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="movie-title">Ініціалізація трансляції...</div>
-    <video id="player" playsinline controls></video>
-</div>
+    <div id="movie-title">Завантаження системи...</div>
+    <div id="player-wrapper">
+        <div id="player"></div>
+        <div id="error-msg">СИСТЕМА OFFLINE АБО ПОМИЛКА ЗАВАНТАЖЕННЯ</div>
+    </div>
 
 <script>
-    // ПОСИЛАННЯ НА ТВІЙ db.json З DROPBOX (Обов'язково з &raw=1 в кінці!)
-    const dbUrl = 'ЗAMІНИ_ЦЕ_НА_СВОЄ_ПОСИЛАННЯ_З_DROPBOX_ЯК_Я_ОПИСУВАВ_РАНІШЕ&raw=1';
+    // Твій особистий ID бази даних, який ми щойно згенерували
+    const BIN_ID = '6a4678b5da38895dfe22ec7d';
+    const dbUrl = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest?meta=false`;
 
     async function initPlayer() {
-        const video = document.getElementById('player');
         const titleEl = document.getElementById('movie-title');
+        const errorEl = document.getElementById('error-msg');
+        const playerEl = document.getElementById('player');
 
         try {
-            // Завантажуємо свіжі дані без кешування браузера
-            const response = await fetch(dbUrl + '&v=' + Math.random());
-            if (!response.ok) throw new Error('Не вдалося прочитати базу даних');
+            // Отримуємо актуальні дані про фільм
+            const response = await fetch(dbUrl);
+            if (!response.ok) throw new Error('Помилка мережі');
             
             const data = await response.json();
             const movie = data.movies[0];
 
-            titleEl.innerText = movie.title;
-
-            // Перевірка статусу системи
-            if (movie.status !== "ONLINE") {
-                titleEl.innerText = "СИСТЕМА ОФЛАЙН (ТЕХНІЧНІ РОБОТИ)";
-                video.style.display = 'none';
+            // Перевіряємо статус системи
+            if (movie.status === 'OFFLINE') {
+                titleEl.innerText = "СИСТЕМА ОФЛАЙН";
+                titleEl.style.color = "red";
+                playerEl.style.display = 'none';
+                errorEl.style.display = 'block';
                 return;
             }
 
-            const streamUrl = movie.url;
+            // Виводимо назву фільму
+            titleEl.innerText = movie.title;
 
-            // Перевіряємо формат посилання
-            if (streamUrl.includes('.m3u8')) {
-                if (Hls.isSupported()) {
-                    const hls = new Hls();
-                    hls.loadSource(streamUrl);
-                    hls.attachMedia(video);
-                    window.hls = hls;
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Рідна підтримка для Safari (iOS / Mac)
-                    video.src = streamUrl;
-                }
-            } else {
-                // Стандартний MP4 файл
-                video.src = streamUrl;
-            }
-
-            // Запуск стильного інтерфейсу Plyr
-            new Plyr(video, {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'fullscreen'],
-                tooltips: { controls: true, seek: true }
+            // Ініціалізуємо плеєр Clappr, який ідеально жує .m3u8 потоки
+            const player = new Clappr.Player({
+                source: movie.url,
+                parentId: "#player",
+                width: "100%",
+                height: "100%",
+                autoPlay: false,
+                preload: 'auto',
+                mimeType: 'application/x-mpegURL'
             });
 
         } catch (error) {
-            titleEl.innerText = "ПОМИЛКА З'ЄДНАННЯ З КІНОСЕРВЕРОМ";
             console.error(error);
+            titleEl.innerText = "ПОМИЛКА СИНХРОНІЗАЦІЇ";
+            titleEl.style.color = "red";
+            playerEl.style.display = 'none';
+            errorEl.style.display = 'block';
         }
     }
 
-    document.addEventListener('DOMContentLoaded', initPlayer);
+    // Запуск при завантаженні сторінки
+    window.onload = initPlayer;
 </script>
-
 </body>
 </html>
